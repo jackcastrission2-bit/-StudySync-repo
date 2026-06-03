@@ -21,7 +21,8 @@ let authMode = 'signin';
 function showScreen(id) {
   ['loginScreen', 'loadingScreen', 'appScreen'].forEach(s => {
     const el = document.getElementById(s);
-    if (el) el.style.display = s === id ? (s === 'appScreen' ? 'flex' : 'flex') : 'none';
+    if (!el) return;
+    el.style.display = s === id ? 'flex' : 'none';
   });
 }
 
