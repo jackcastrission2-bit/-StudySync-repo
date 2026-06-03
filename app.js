@@ -3,18 +3,156 @@
 // Main application logic
 // =====================
 
+// ── Supabase ───────────────────────────────────────────────────────────────
+
+const { createClient } = supabase;
+const sb = createClient(
+  'https://ulsostfiffgcqjzfpzat.supabase.co',
+  'sb_publishable_D2d6OqxbxMQQ-Qd-SGGZeQ_EUxNzIvA',
+  { auth: { flowType: 'implicit' } }
+);
+
+let currentUser = null;
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+
+let authMode = 'signin';
+
+function showScreen(id) {
+  ['loginScreen', 'loadingScreen', 'appScreen'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.style.display = s === id ? (s === 'appScreen' ? 'flex' : 'flex') : 'none';
+  });
+}
+
+function setLoadingMsg(msg) {
+  document.getElementById('loadingMsg').textContent = msg;
+}
+
+function toggleAuthMode() {
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  const isSignup = authMode === 'signup';
+  document.getElementById('loginBtn').textContent = isSignup ? 'Sign up' : 'Sign in';
+  document.getElementById('authToggle').textContent = isSignup
+    ? 'Already have an account? Sign in'
+    : "Don't have an account? Sign up";
+  document.getElementById('loginSub').textContent = isSignup
+    ? 'Create your StudySync account'
+    : 'Sign in to your student diary';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+async function submitAuth() {
+  const btn    = document.getElementById('loginBtn');
+  const errEl  = document.getElementById('loginError');
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  errEl.style.display = 'none';
+
+  if (!email || !password) {
+    errEl.textContent = 'Please enter your email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (authMode === 'signup' && password.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = authMode === 'signup' ? 'Creating account...' : 'Signing in...';
+
+  if (authMode === 'signup') {
+    const { data, error } = await sb.auth.signUp({ email, password });
+    if (error) {
+      errEl.textContent = error.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign up';
+      return;
+    }
+    if (data.session) {
+      currentUser = data.user;
+      setupUserUI();
+      loadState();
+      render();
+      showScreen('appScreen');
+    } else {
+      errEl.style.background = '#e8f5e9';
+      errEl.style.borderColor = '#a5d6a7';
+      errEl.style.color = '#2e7d32';
+      errEl.textContent = 'Account created! Check your email to confirm before signing in.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+      authMode = 'signin';
+      document.getElementById('loginBtn').textContent = 'Sign in';
+      document.getElementById('authToggle').textContent = "Don't have an account? Sign up";
+    }
+  } else {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      errEl.textContent = error.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+      return;
+    }
+    currentUser = data.user;
+    setupUserUI();
+    loadState();
+    render();
+    showScreen('appScreen');
+  }
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  currentUser = null;
+  state = null;
+  showScreen('loginScreen');
+}
+
+async function checkUser() {
+  showScreen('loadingScreen');
+  setLoadingMsg('Checking session...');
+  const { data: { session } } = await sb.auth.getSession().catch(() => ({ data: { session: null } }));
+  if (session) {
+    currentUser = session.user;
+    setupUserUI();
+    loadState();
+    render();
+    showScreen('appScreen');
+  } else {
+    showScreen('loginScreen');
+  }
+}
+
+function setupUserUI() {
+  const name     = currentUser.user_metadata?.full_name || currentUser.email || 'Student';
+  const initials = name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  document.getElementById('userAvatar').textContent      = initials;
+  document.getElementById('userDisplayName').textContent = name.split('@')[0];
+  document.getElementById('userDisplayEmail').textContent = currentUser.email || '';
+}
+
 // ── State ──────────────────────────────────────────────────────────────────
 
 let state = null;
-const STORAGE_KEY = 'studysync-state';
+
+function storageKey() {
+  return 'studysync-state-' + (currentUser ? currentUser.id : 'guest');
+}
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (raw) {
       state = JSON.parse(raw);
     } else {
-      state = JSON.parse(JSON.stringify(DEFAULT_STATE)); // deep clone
+      state = JSON.parse(JSON.stringify(DEFAULT_STATE));
     }
   } catch (e) {
     state = JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -23,7 +161,7 @@ function loadState() {
 
 function saveState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(storageKey(), JSON.stringify(state));
   } catch (e) {
     console.warn('Could not save state:', e);
   }
@@ -209,7 +347,6 @@ function saveClass() {
   saveState();
   closeModal('addClass');
   render();
-  // clear fields
   ['ac-subj', 'ac-time', 'ac-room', 'ac-teacher'].forEach(id => {
     document.getElementById(id).value = '';
   });
@@ -296,7 +433,6 @@ function renderDashboard() {
   const li = levelInfo();
   document.getElementById('xp-chip-val').textContent = `Level ${li.lvl} · ${state.xp} XP`;
 
-  // Today's timetable
   const ttl = document.getElementById('d-timetable-list');
   if (todayClasses.length === 0) {
     ttl.innerHTML = '<div class="empty-state">No classes today.</div>';
@@ -312,7 +448,6 @@ function renderDashboard() {
       </div>`).join('');
   }
 
-  // Priority homework
   const active = state.homework
     .filter(h => !h.done)
     .sort((a, b) => new Date(a.due) - new Date(b.due))
@@ -475,8 +610,8 @@ function renderRewards() {
     ? `${li.needed} XP to level ${li.lvl + 1}`
     : 'Max level!';
 
-  document.getElementById('r-streak').textContent    = state.streak;
-  document.getElementById('r-hw-done').textContent   = state.hwDone;
+  document.getElementById('r-streak').textContent     = state.streak;
+  document.getElementById('r-hw-done').textContent    = state.hwDone;
   document.getElementById('r-assign-done').textContent = state.assignDone;
 
   const earned = BADGE_DEFS.filter(b => state.earnedBadges.includes(b.id));
@@ -495,5 +630,4 @@ function renderRewards() {
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 
-loadState();
-render();
+checkUser();
