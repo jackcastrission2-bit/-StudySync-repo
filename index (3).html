@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudySync – Smart Student Diary</title>
+  <link rel="stylesheet" href="src/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"><i class="ti ti-school"></i></div>
+      <div class="logo-text">StudySync</div>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="nav-item active" data-page="dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
+      <button class="nav-item" data-page="timetable"><i class="ti ti-calendar"></i> Timetable</button>
+      <button class="nav-item" data-page="homework"><i class="ti ti-checklist"></i> Homework</button>
+      <button class="nav-item" data-page="assignments"><i class="ti ti-notebook"></i> Assignments</button>
+      <button class="nav-item" data-page="replay"><i class="ti ti-refresh"></i> Replay</button>
+      <button class="nav-item" data-page="rewards"><i class="ti ti-trophy"></i> Rewards</button>
+    </nav>
+  </div>
+
+  <div class="main" id="main">
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="topbar">
+        <div class="topbar-left"><h2>Welcome back! 👋</h2><p>Here's what's happening today.</p></div>
+        <div class="topbar-right">
+          <div class="xp-chip"><i class="ti ti-star"></i><span id="xp-chip-val">0 XP</span></div>
+        </div>
+      </div>
+      <div class="page-body">
+        <div class="stat-grid">
+          <div class="stat-card purple">
+            <div class="stat-label">Classes Today <i class="ti ti-calendar"></i></div>
+            <div class="stat-num" id="d-classes">0</div>
+            <div class="stat-sub">On your schedule</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-label">Due Soon <i class="ti ti-clock"></i></div>
+            <div class="stat-num" id="d-due">0</div>
+            <div class="stat-sub">Homework tasks</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Assignments <i class="ti ti-notebook"></i></div>
+            <div class="stat-num" id="d-assign">0</div>
+            <div class="stat-sub">In progress</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Streak <i class="ti ti-flame"></i></div>
+            <div class="stat-num" id="d-streak">0</div>
+            <div class="stat-sub">Days</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Today's Timetable</div>
+            <div class="card-sub">Your schedule for today</div>
+            <div id="d-timetable-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Priority Homework</div>
+            <div class="card-sub-row">
+              <span class="card-sub">Tasks needing attention</span>
+              <span class="link-btn" onclick="goPage('homework')">View all</span>
+            </div>
+            <div id="d-hw-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timetable -->
+    <div class="page" id="page-timetable">
+      <div class="topbar">
+        <div class="topbar-left"><h2>Timetable</h2><p>Your weekly schedule</p></div>
+        <div class="topbar-right"><button class="add-btn" onclick="openModal('addClass')"><i class="ti ti-plus"></i> Add Class</button></div>
+      </div>
+      <div class="page-body"><div class="tt-grid" id="tt-grid"></div></div>
+    </div>
+
+    <!-- Homework -->
+    <div class="page" id="page-homework">
+      <div class="topbar">
+        <div class="topbar-left"><h2>Homework</h2><p>Track your tasks and due dates</p></div>
+        <div class="topbar-right"><button class="add-btn" onclick="openModal('addHW')"><i class="ti ti-plus"></i> Add Homework</button></div>
+      </div>
+      <div class="page-body">
+        <div class="hw-filters">
+          <button class="filter-btn active" onclick="setHWFilter('active', this)">Active</button>
+          <button class="filter-btn" onclick="setHWFilter('completed', this)">Completed</button>
+          <button class="filter-btn" onclick="setHWFilter('all', this)">All</button>
+        </div>
+        <div id="hw-list"></div>
+      </div>
+    </div>
+
+    <!-- Assignments -->
+    <div class="page" id="page-assignments">
+      <div class="topbar">
+        <div class="topbar-left"><h2>Assignments</h2><p>Track big projects and assessments</p></div>
+        <div class="topbar-right"><button class="add-btn" onclick="openModal('addAssign')"><i class="ti ti-plus"></i> New Assignment</button></div>
+      </div>
+      <div class="page-body"><div class="assign-grid" id="assign-grid"></div></div>
+    </div>
+
+    <!-- Replay -->
+    <div class="page" id="page-replay">
+      <div class="topbar">
+        <div class="topbar-left"><h2>Replay</h2><p>Practice what you've learned</p></div>
+        <div class="topbar-right"><button class="add-btn" onclick="openModal('addReplay')"><i class="ti ti-plus"></i> Add Question</button></div>
+      </div>
+      <div class="page-body" id="replay-content"></div>
+    </div>
+
+    <!-- Rewards -->
+    <div class="page" id="page-rewards">
+      <div class="topbar">
+        <div class="topbar-left"><h2>Rewards &amp; Progress</h2><p>Track your achievements and level up</p></div>
+      </div>
+      <div class="page-body">
+        <div class="xp-card">
+          <div class="xp-level" id="r-level-label">Level 1 Student</div>
+          <div class="xp-name" id="r-level-name">Getting Started</div>
+          <div class="xp-bar-bg"><div class="xp-bar-fill" id="r-xp-bar"></div></div>
+          <div class="xp-meta">
+            <span id="r-xp-total">0 Total XP</span>
+            <span id="r-xp-needed">100 XP to next level</span>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-mini"><div class="stat-mini-num" id="r-streak">0</div><div class="stat-mini-label">Day Streak 🔥</div></div>
+          <div class="stat-mini"><div class="stat-mini-num" id="r-hw-done">0</div><div class="stat-mini-label">Homework Done</div></div>
+          <div class="stat-mini"><div class="stat-mini-num" id="r-assign-done">0</div><div class="stat-mini-label">Projects Done</div></div>
+        </div>
+        <div class="section-title"><i class="ti ti-award"></i> Badges Earned</div>
+        <div class="badges-grid" id="badges-grid"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-bg" id="modal-addClass">
+  <div class="modal">
+    <div class="modal-title">Add Class</div>
+    <div class="field"><label>Subject</label><input id="ac-subj" placeholder="e.g. Maths"></div>
+    <div class="field"><label>Day</label>
+      <select id="ac-day">
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option>
+      </select>
+    </div>
+    <div class="field"><label>Time (e.g. 08:30 - 09:25)</label><input id="ac-time" placeholder="08:30 - 09:25"></div>
+    <div class="field"><label>Room</label><input id="ac-room" placeholder="e.g. B12"></div>
+    <div class="field"><label>Teacher</label><input id="ac-teacher" placeholder="e.g. Ms Thompson"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal('addClass')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClass()">Add Class</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-addHW">
+  <div class="modal">
+    <div class="modal-title">Add Homework</div>
+    <div class="field"><label>Subject</label><input id="hw-subj" placeholder="e.g. Maths"></div>
+    <div class="field"><label>Description</label><textarea id="hw-desc" placeholder="What needs to be done?"></textarea></div>
+    <div class="field"><label>Due Date</label><input id="hw-due" type="date"></div>
+    <div class="field"><label>Priority</label>
+      <select id="hw-pri">
+        <option value="high">High</option>
+        <option value="medium" selected>Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+    <div class="field"><label>Estimated time (mins)</label><input id="hw-time" type="number" placeholder="30"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal('addHW')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveHW()">Add Homework</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-addAssign">
+  <div class="modal">
+    <div class="modal-title">New Assignment</div>
+    <div class="field"><label>Subject</label><input id="as-subj" placeholder="e.g. Science"></div>
+    <div class="field"><label>Title</label><input id="as-title" placeholder="e.g. Science Research Project"></div>
+    <div class="field"><label>Description</label><textarea id="as-desc" placeholder="What is this assignment about?"></textarea></div>
+    <div class="field"><label>Due Date</label><input id="as-due" type="date"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal('addAssign')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssign()">Create Assignment</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-addReplay">
+  <div class="modal">
+    <div class="modal-title">Add Replay Question</div>
+    <div class="field"><label>Subject</label><input id="rq-subj" placeholder="e.g. Maths"></div>
+    <div class="field"><label>Question</label><textarea id="rq-q" placeholder="What is 3/4 + 1/2?"></textarea></div>
+    <div class="field"><label>Correct Answer</label><input id="rq-a1" placeholder="Correct answer"></div>
+    <div class="field"><label>Wrong Answer 1</label><input id="rq-a2" placeholder="Wrong answer"></div>
+    <div class="field"><label>Wrong Answer 2</label><input id="rq-a3" placeholder="Wrong answer"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal('addReplay')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReplay()">Add Question</button>
+    </div>
+  </div>
+</div>
+
+<script src="src/data.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>
