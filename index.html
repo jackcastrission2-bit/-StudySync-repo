@@ -4,14 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StudySync – Smart Student Diary</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="src/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<div class="app">
+<!-- ── Login Screen ── -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-wrap">
+    <div class="login-icon">📚</div>
+    <div class="login-title">StudySync</div>
+    <div class="login-sub" id="loginSub">Sign in to your student diary</div>
+    <div class="login-error" id="loginError"></div>
+    <input class="login-input" id="loginEmail" type="email" placeholder="Email address" />
+    <input class="login-input" id="loginPassword" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitAuth()" />
+    <button class="login-btn" id="loginBtn" onclick="submitAuth()">Sign in</button>
+    <button onclick="toggleAuthMode()" class="login-toggle" id="authToggle">Don't have an account? Sign up</button>
+  </div>
+</div>
+
+<!-- ── Loading Screen ── -->
+<div id="loadingScreen" class="login-screen">
+  <div class="login-wrap">
+    <div class="login-icon">⏳</div>
+    <div class="login-title" id="loadingMsg">Loading...</div>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div class="app" id="appScreen" style="display:none">
   <div class="sidebar">
     <div class="logo">
       <div class="logo-icon"><i class="ti ti-school"></i></div>
@@ -25,6 +49,16 @@
       <button class="nav-item" data-page="replay"><i class="ti ti-refresh"></i> Replay</button>
       <button class="nav-item" data-page="rewards"><i class="ti ti-trophy"></i> Rewards</button>
     </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip" id="userChip">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="userDisplayName">Student</div>
+          <div class="user-email" id="userDisplayEmail"></div>
+        </div>
+      </div>
+      <button class="signout-btn" onclick="signOut()"><i class="ti ti-logout"></i> Sign Out</button>
+    </div>
   </div>
 
   <div class="main" id="main">
@@ -219,7 +253,7 @@
   </div>
 </div>
 
-<script src="data.js"></script>
-<script src="app.js"></script>
+<script src="src/data.js"></script>
+<script src="src/app.js"></script>
 </body>
 </html>
