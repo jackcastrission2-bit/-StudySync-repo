@@ -370,9 +370,11 @@ function renderWizardStep(step) {
   const content = document.getElementById('wizardContent');
 
   if (step === 'upload') {
+    const uploadingWeek = ocrWizardState._uploadingWeek;
+    const weekLabel = uploadingWeek && state.abWeekEnabled ? ` — Week ${uploadingWeek}` : '';
     content.innerHTML = `
       <div class="wiz-icon">📅</div>
-      <div class="wiz-title">Set up your timetable</div>
+      <div class="wiz-title">Set up your timetable${weekLabel}</div>
       <div class="wiz-sub">Upload a photo or screenshot of your school timetable.<br>The app will read it and build your schedule automatically.</div>
       <label class="upload-zone" id="uploadZone">
         <i class="ti ti-upload"></i>
@@ -561,7 +563,6 @@ function skipToManual() {
 }
 
 function confirmTimetable() {
-  // Strip OCR-only fields, keep what the app needs
   const classes = ocrWizardState.parsedClasses.map(c => ({
     id:      c.id,
     subject: c.subject,
@@ -572,10 +573,21 @@ function confirmTimetable() {
     colour:  c.colour,
   }));
 
-  // Merge into state
-  state.classes = classes;
+  const targetWeek = ocrWizardState._uploadingWeek || 'A';
+
+  if (state.abWeekEnabled && targetWeek === 'B') {
+    state.classesB = classes;
+  } else {
+    // Save to classesA (and legacy classes for compatibility)
+    state.classesA = classes;
+    state.classes  = classes;
+  }
+
   state.hasCompletedSetup = true;
+  ocrWizardState._uploadingWeek = null;
   saveState();
   hideSetupWizard();
   render();
+  // If on settings page, re-render it
+  if (typeof renderSettings === 'function') renderSettings();
 }
