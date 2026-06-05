@@ -121,5 +121,14 @@ const DEFAULT_STATE = {
   earnedBadges: ['first_hw', 'week_warrior'],
   hwFilter: 'active',
   hasCompletedSetup: false,
+  // A/B week system
+  classesA: [],          // Week A timetable
+  classesB: [],          // Week B timetable
+  abWeekEnabled: false,  // Whether A/B weeks are active
+  currentWeek: 'A',      // Which week is currently active: 'A' or 'B'
+  termStartDate: '',     // ISO date string — first Monday of the school year
+  termStartWeek: 'A',    // Was term start an A or B week?
+  // Holidays
+  holidays: [],          // [{ id, name, start, end }]
   nextId: 400,
 };
