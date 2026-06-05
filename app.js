@@ -80,6 +80,7 @@ async function submitAuth() {
       loadState();
       render();
       showScreen('appScreen');
+      if (!state.hasCompletedSetup) showSetupWizard();
     } else {
       errEl.style.background = '#e8f5e9';
       errEl.style.borderColor = '#a5d6a7';
@@ -118,6 +119,7 @@ async function submitAuth() {
     loadState();
     render();
     showScreen('appScreen');
+    if (!state.hasCompletedSetup) showSetupWizard();
   }
 }
 
@@ -153,6 +155,7 @@ async function checkUser() {
     loadState();
     render();
     showScreen('appScreen');
+    if (!state.hasCompletedSetup) showSetupWizard();
   } else {
     showScreen('loginScreen');
   }
