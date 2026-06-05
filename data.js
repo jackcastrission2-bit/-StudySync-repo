@@ -120,5 +120,6 @@ const DEFAULT_STATE = {
   replaysAnswered: 1,
   earnedBadges: ['first_hw', 'week_warrior'],
   hwFilter: 'active',
+  hasCompletedSetup: false,
   nextId: 400,
 };
