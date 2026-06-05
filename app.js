@@ -237,6 +237,12 @@ function getDayName() {
   return days[new Date().getDay()];
 }
 
+function parseTimeStr(s) {
+  if (!s) return 0;
+  const parts = s.trim().split(':');
+  return parseInt(parts[0]) * 60 + parseInt(parts[1] || 0);
+}
+
 function fmtDate(s) {
   if (!s) return '';
   const [y, m, d] = s.split('-');
@@ -448,12 +454,15 @@ function render() {
   renderAssignments();
   renderReplay();
   renderRewards();
+  if (typeof renderSettings === 'function') renderSettings();
 }
 
 function renderDashboard() {
   const today        = getDayName();
-  const todayClasses = state.classes
-    .filter(c => c.day === today)
+  const now          = new Date();
+  const weekLetter   = state.abWeekEnabled ? getCurrentWeekLetter() : null;
+  const todayHol     = typeof isHoliday === 'function' ? isHoliday(now) : null;
+  const todayClasses = getClassesForDay(today, now)
     .sort((a, b) => a.time.localeCompare(b.time));
 
   document.getElementById('d-classes').textContent = todayClasses.length;
@@ -462,21 +471,37 @@ function renderDashboard() {
   document.getElementById('d-streak').textContent  = state.streak;
 
   const li = levelInfo();
-  document.getElementById('xp-chip-val').textContent = `Level ${li.lvl} · ${state.xp} XP`;
+  const weekChip = weekLetter ? ` · Week ${weekLetter}` : '';
+  document.getElementById('xp-chip-val').textContent = `Level ${li.lvl} · ${state.xp} XP${weekChip}`;
 
   const ttl = document.getElementById('d-timetable-list');
-  if (todayClasses.length === 0) {
+
+  if (todayHol) {
+    ttl.innerHTML = `<div class="holiday-dash-banner">🏖️ <strong>${todayHol.name}</strong> — enjoy the break!</div>`;
+  } else if (todayClasses.length === 0) {
     ttl.innerHTML = '<div class="empty-state">No classes today.</div>';
   } else {
-    ttl.innerHTML = todayClasses.map(c => `
-      <div class="class-item">
-        <div class="class-time">${c.time.split(' - ')[0]}</div>
-        <div class="class-dot"></div>
+    // Highlight current/next class
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    ttl.innerHTML = todayClasses.map(c => {
+      const parts = c.time.split(' - ');
+      const startM = parts[0] ? parseTimeStr(parts[0]) : 0;
+      const endM   = parts[1] ? parseTimeStr(parts[1]) : 0;
+      const isCurrent = nowMins >= startM && nowMins < endM;
+      const isNext    = !isCurrent && nowMins < startM && !todayClasses.some(x => {
+        const xStart = parseTimeStr((x.time||'').split(' - ')[0]);
+        return xStart < startM && xStart > nowMins;
+      });
+      return `
+      <div class="class-item${isCurrent ? ' class-now' : isNext ? ' class-next' : ''}">
+        <div class="class-time">${parts[0] || ''}</div>
+        <div class="class-dot" style="${c.colour ? 'background:'+c.colour : ''}"></div>
         <div>
-          <div class="class-name">${c.subject}</div>
-          <div class="class-room">${c.room} · ${c.teacher}</div>
+          <div class="class-name">${c.subject}${isCurrent ? ' <span class="now-badge">NOW</span>' : isNext ? ' <span class="next-badge">NEXT</span>' : ''}</div>
+          <div class="class-room">${[c.room, c.teacher].filter(Boolean).join(' · ')}</div>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   const active = state.homework
@@ -500,32 +525,56 @@ function renderDashboard() {
 }
 
 function renderTimetable() {
-  const today = getDayName();
-  document.getElementById('tt-grid').innerHTML = DAY_ORDER.map(day => {
-    const classes = state.classes
-      .filter(c => c.day === day)
-      .sort((a, b) => a.time.localeCompare(b.time));
-    const isToday = today === day;
+  const today      = getDayName();
+  const now        = new Date();
+  const weekLetter = state.abWeekEnabled ? getCurrentWeekLetter() : null;
+  const todayHol   = typeof isHoliday === 'function' ? isHoliday(now) : null;
+
+  const grid = document.getElementById('tt-grid');
+
+  // Week switcher tabs if A/B enabled
+  const tabHtml = state.abWeekEnabled ? `
+    <div class="tt-week-tabs">
+      <button class="tt-week-tab${weekLetter==='A'?' active':''}" onclick="viewTimetableWeek('A')">Week A ${weekLetter==='A'?'<span class=\'current-week-chip\'>This week</span>':''}</button>
+      <button class="tt-week-tab${weekLetter==='B'?' active':''}" onclick="viewTimetableWeek('B')">Week B ${weekLetter==='B'?'<span class=\'current-week-chip\'>This week</span>':''}</button>
+    </div>` : '';
+
+  const viewWeek = window._ttViewWeek || weekLetter || 'A';
+  const classes = state.abWeekEnabled
+    ? (viewWeek === 'B' ? (state.classesB||[]) : (state.classesA && state.classesA.length > 0 ? state.classesA : state.classes))
+    : (state.classesA && state.classesA.length > 0 ? state.classesA : state.classes);
+
+  const dayGrid = DAY_ORDER.map(day => {
+    const dayClasses = classes.filter(c => c.day === day).sort((a, b) => a.time.localeCompare(b.time));
+    const isToday = today === day && viewWeek === weekLetter;
 
     return `
       <div class="tt-day">
         <div class="tt-day-head">
           ${day}
           ${isToday ? '<span class="today-badge">Today</span>' : ''}
+          ${isToday && todayHol ? '<span class="hol-badge">Holiday</span>' : ''}
         </div>
-        ${classes.length === 0
+        ${dayClasses.length === 0
           ? '<div class="tt-empty">No classes</div>'
-          : classes.map(c => `
-              <div class="tt-class">
+          : dayClasses.map(c => `
+              <div class="tt-class" style="${c.colour ? 'border-left:3px solid '+c.colour : ''}">
                 <div class="tt-subj">${c.subject}</div>
                 <div class="tt-meta">
                   <span>🕐 ${c.time}</span>
-                  <span>📍 ${c.room}</span>
-                  <span>👤 ${c.teacher}</span>
+                  ${c.room ? '<span>📍 '+c.room+'</span>' : ''}
+                  ${c.teacher ? '<span>👤 '+c.teacher+'</span>' : ''}
                 </div>
               </div>`).join('')}
       </div>`;
   }).join('');
+
+  grid.innerHTML = tabHtml + '<div class="tt-days-grid">' + dayGrid + '</div>';
+}
+
+function viewTimetableWeek(letter) {
+  window._ttViewWeek = letter;
+  renderTimetable();
 }
 
 function renderHW() {
