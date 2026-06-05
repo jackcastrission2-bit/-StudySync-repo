@@ -49,6 +49,7 @@
       <button class="nav-item" data-page="assignments"><i class="ti ti-notebook"></i> Assignments</button>
       <button class="nav-item" data-page="replay"><i class="ti ti-refresh"></i> Replay</button>
       <button class="nav-item" data-page="rewards"><i class="ti ti-trophy"></i> Rewards</button>
+      <button class="nav-item" data-page="settings"><i class="ti ti-settings"></i> Settings</button>
     </nav>
     <div class="sidebar-footer">
       <div class="user-chip" id="userChip">
@@ -155,6 +156,14 @@
         <div class="topbar-right"><button class="add-btn" onclick="openModal('addReplay')"><i class="ti ti-plus"></i> Add Question</button></div>
       </div>
       <div class="page-body" id="replay-content"></div>
+    </div>
+
+    <!-- Settings -->
+    <div class="page" id="page-settings">
+      <div class="topbar">
+        <div class="topbar-left"><h2>Settings</h2><p>Manage your timetable, weeks and holidays</p></div>
+      </div>
+      <div class="page-body" id="settings-body"></div>
     </div>
 
     <!-- Rewards -->
@@ -264,6 +273,7 @@
 
 <script src="data.js"></script>
 <script src="timetable-ocr.js"></script>
+<script src="settings.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
