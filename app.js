@@ -95,8 +95,20 @@ async function submitAuth() {
   } else {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) {
-      errEl.textContent = error.message;
-      errEl.style.display = 'block';
+      if (error.message.toLowerCase().includes('email not confirmed') || error.message.toLowerCase().includes('not confirmed')) {
+        // Show resend option
+        errEl.style.background = '#fff8e1';
+        errEl.style.borderColor = '#ffe082';
+        errEl.style.color = '#7b5a00';
+        errEl.innerHTML = 'Your email isn\'t confirmed yet. <button onclick="resendConfirmation()" style="background:none;border:none;color:#7b5a00;text-decoration:underline;cursor:pointer;font-size:13px;padding:0;">Resend confirmation email</button>';
+        errEl.style.display = 'block';
+      } else {
+        errEl.style.background = '';
+        errEl.style.borderColor = '';
+        errEl.style.color = '#c0392b';
+        errEl.textContent = error.message;
+        errEl.style.display = 'block';
+      }
       btn.disabled = false;
       btn.textContent = 'Sign in';
       return;
@@ -107,6 +119,21 @@ async function submitAuth() {
     render();
     showScreen('appScreen');
   }
+}
+
+async function resendConfirmation() {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) {
+    alert('Please enter your email address first.');
+    return;
+  }
+  const { error } = await sb.auth.resend({ type: 'signup', email });
+  const errEl = document.getElementById('loginError');
+  errEl.style.background = '#e8f5e9';
+  errEl.style.borderColor = '#a5d6a7';
+  errEl.style.color = '#2e7d32';
+  errEl.textContent = error ? error.message : '✓ Confirmation email sent! Check your inbox then sign in.';
+  errEl.style.display = 'block';
 }
 
 async function signOut() {
