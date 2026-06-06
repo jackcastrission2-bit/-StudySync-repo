@@ -274,12 +274,12 @@
       <div class="wiz-title" id="wiz-upload-title">Set up your timetable</div>
       <div class="wiz-sub">Upload a photo or screenshot of your school timetable.<br>The app will read it and build your schedule automatically.</div>
       <div class="wiz-tip" id="wiz-ab-tip" style="display:none">💡 Your timetable has A and B weeks? Enable A/B weeks in Settings first, then upload each week separately.</div>
-      <label class="upload-zone" id="uploadZone">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('ttFile').click()">
         <i class="ti ti-upload"></i>
         <span>Click to upload or drag &amp; drop</span>
         <span class="upload-hint">JPG, PNG, WebP, PDF supported</span>
         <input type="file" id="ttFile" accept="image/*,.pdf" style="display:none" onchange="handleTTUpload(this.files[0])">
-      </label>
+      </div>
       <div class="wiz-skip">
         <button class="wiz-skip-btn" onclick="skipToManual()">Set up manually instead →</button>
       </div>
