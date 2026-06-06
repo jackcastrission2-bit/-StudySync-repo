@@ -485,23 +485,11 @@ function setupUploadStep() {
       (uploadingWeek && state.abWeekEnabled ? ' — Week ' + uploadingWeek : '');
   }
   if (tipEl) {
-    tipEl.style.display = state.abWeekEnabled ? 'none' : 'block';
+    tipEl.style.display = (typeof state !== 'undefined' && state.abWeekEnabled) ? 'none' : 'block';
   }
 
-  // Set up drag & drop
+  // Reset file input so same file can be re-uploaded
   setTimeout(() => {
-    const zone = document.getElementById('uploadZone');
-    if (!zone || zone._ddSetup) return;
-    zone._ddSetup = true;
-    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', e => {
-      e.preventDefault();
-      zone.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (file) handleTTUpload(file);
-    });
-    // Reset file input so same file can be re-uploaded
     const inp = document.getElementById('ttFile');
     if (inp) inp.value = '';
   }, 50);
