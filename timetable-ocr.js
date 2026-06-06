@@ -448,160 +448,232 @@ let ocrWizardState = {
   parsedClasses: [],
   imageDataUrl: null,
   _uploadingWeek: null,
+  _reviewWeekTab: 'A',
 };
 
-// ── Wizard UI ─────────────────────────────────────────────────────────────
+// ── Wizard show/hide ──────────────────────────────────────────────────────
 
 function showSetupWizard() {
   document.getElementById('setupWizard').style.display = 'flex';
-  renderWizardStep('upload');
+  showWizStep('upload');
 }
 
 function hideSetupWizard() {
   document.getElementById('setupWizard').style.display = 'none';
 }
 
-function renderWizardStep(step) {
+function showWizStep(step) {
   ocrWizardState.step = step;
-  const content = document.getElementById('wizardContent');
+  ['upload','scanning','failed','review'].forEach(s => {
+    const el = document.getElementById('wiz-' + s);
+    if (el) el.style.display = s === step ? 'flex' : 'none';
+  });
 
-  if (step === 'upload') {
-    const uploadingWeek = ocrWizardState._uploadingWeek;
-    const weekLabel = uploadingWeek && state.abWeekEnabled ? ` — Week ${uploadingWeek}` : '';
-    const showABTip = !state.abWeekEnabled;
+  if (step === 'upload') setupUploadStep();
+  if (step === 'review') renderReviewStep();
+}
 
-    content.innerHTML = `
-      <div class="wiz-icon">📅</div>
-      <div class="wiz-title">Set up your timetable${weekLabel}</div>
-      <div class="wiz-sub">
-        Upload a photo or screenshot of your school timetable.<br>
-        The app will read it and build your schedule automatically.
-      </div>
-      ${showABTip ? `<div class="wiz-tip">💡 Your timetable has A and B weeks? Enable A/B weeks in Settings first, then upload each week separately.</div>` : ''}
-      <label class="upload-zone" id="uploadZone">
-        <i class="ti ti-upload"></i>
-        <span>Click to upload or drag & drop</span>
-        <span class="upload-hint">JPG, PNG, WebP, PDF supported</span>
-        <input type="file" id="ttFile" accept="image/*,.pdf" style="display:none"
-          onchange="handleTTUpload(this.files[0])">
-      </label>
-      <div class="wiz-skip">
-        <button class="wiz-skip-btn" onclick="skipToManual()">Set up manually instead →</button>
-      </div>`;
+// ── Upload step ───────────────────────────────────────────────────────────
 
-    setTimeout(() => {
-      const zone = document.getElementById('uploadZone');
-      if (!zone) return;
-      zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
-      zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-      zone.addEventListener('drop', e => {
-        e.preventDefault();
-        zone.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (file) handleTTUpload(file);
+function setupUploadStep() {
+  const titleEl = document.getElementById('wiz-upload-title');
+  const tipEl   = document.getElementById('wiz-ab-tip');
+  const uploadingWeek = ocrWizardState._uploadingWeek;
+
+  if (titleEl) {
+    titleEl.textContent = 'Set up your timetable' +
+      (uploadingWeek && state.abWeekEnabled ? ' — Week ' + uploadingWeek : '');
+  }
+  if (tipEl) {
+    tipEl.style.display = state.abWeekEnabled ? 'none' : 'block';
+  }
+
+  // Set up drag & drop
+  setTimeout(() => {
+    const zone = document.getElementById('uploadZone');
+    if (!zone || zone._ddSetup) return;
+    zone._ddSetup = true;
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) handleTTUpload(file);
+    });
+    // Reset file input so same file can be re-uploaded
+    const inp = document.getElementById('ttFile');
+    if (inp) inp.value = '';
+  }, 50);
+}
+
+// ── Review step ───────────────────────────────────────────────────────────
+
+function renderReviewStep() {
+  const classes   = ocrWizardState.parsedClasses;
+  const conflicts = detectConflicts(classes);
+
+  // Count
+  const countEl = document.getElementById('wiz-class-count');
+  if (countEl) countEl.textContent = classes.length;
+
+  // Conflict warning
+  const warnEl = document.getElementById('wiz-conflict-warn');
+  if (warnEl) {
+    if (conflicts.length > 0) {
+      warnEl.textContent = '⚠️ ' + conflicts.length + ' time conflict' + (conflicts.length > 1 ? 's' : '') + ' detected — check highlighted rows';
+      warnEl.style.display = 'block';
+    } else {
+      warnEl.style.display = 'none';
+    }
+  }
+
+  // Week tabs
+  const weeksPresent = [...new Set(classes.map(c => c.week || 'A'))].sort();
+  const tabsEl = document.getElementById('wiz-week-tabs');
+  if (tabsEl) {
+    if (weeksPresent.length > 1) {
+      tabsEl.style.display = 'flex';
+      tabsEl.innerHTML = '';
+      weeksPresent.forEach(w => {
+        const btn = document.createElement('button');
+        btn.className = 'review-week-tab' + (w === ocrWizardState._reviewWeekTab ? ' active' : '');
+        const count = classes.filter(c => (c.week || 'A') === w).length;
+        btn.innerHTML = 'Week ' + w + ' <span class="review-tab-count">' + count + '</span>';
+        btn.onclick = () => {
+          ocrWizardState._reviewWeekTab = w;
+          renderReviewStep();
+        };
+        tabsEl.appendChild(btn);
       });
-    }, 50);
+    } else {
+      tabsEl.style.display = 'none';
+      ocrWizardState._reviewWeekTab = weeksPresent[0] || 'A';
+    }
   }
 
-  else if (step === 'scanning') {
-    content.innerHTML = `
-      <div class="wiz-icon">🔍</div>
-      <div class="wiz-title">Reading your timetable…</div>
-      <div class="wiz-sub">Scanning for classes, times, rooms and teachers. This takes about 20–40 seconds.</div>
-      <div class="ocr-progress-wrap">
-        <div class="ocr-progress-track">
-          <div class="ocr-progress-bar" id="ocr-progress-bar"></div>
-        </div>
-        <div class="ocr-progress-label" id="ocr-progress-label">Starting…</div>
-      </div>`;
-  }
+  // Days
+  const daysEl   = document.getElementById('reviewDays');
+  const activeTab = ocrWizardState._reviewWeekTab || weeksPresent[0] || 'A';
+  const days      = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  if (!daysEl) return;
 
-  else if (step === 'review') {
-    const classes   = ocrWizardState.parsedClasses;
-    const conflicts = detectConflicts(classes);
-    const days      = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  daysEl.innerHTML = '';
+  days.forEach(day => {
+    const dc = classes.filter(c => c.day === day && (c.week || 'A') === activeTab);
 
-    // Group by week
-    const weeksPresent = [...new Set(classes.map(c => c.week || 'A'))].sort();
-    const showWeekTabs = weeksPresent.length > 1;
-    const activeTab    = ocrWizardState._reviewWeekTab || weeksPresent[0] || 'A';
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'review-day';
 
-    content.innerHTML = `
-      <div class="wiz-title">Review your timetable</div>
-      <div class="wiz-sub">We found <strong>${classes.length}</strong> classes. Fix anything wrong, then confirm.</div>
-      ${conflicts.length > 0 ? `<div class="wiz-warning">⚠️ ${conflicts.length} time conflict${conflicts.length>1?'s':''} detected — check highlighted rows</div>` : ''}
+    // Day header
+    const head = document.createElement('div');
+    head.className = 'review-day-head';
+    head.innerHTML = day + ' <span class="review-day-count">' + dc.length + '</span>';
 
-      ${showWeekTabs ? `
-        <div class="review-week-tabs">
-          ${weeksPresent.map(w => `
-            <button class="review-week-tab${w===activeTab?' active':''}" onclick="switchReviewTab('${w}')">
-              Week ${w} <span class="review-tab-count">${classes.filter(c=>(c.week||'A')===w).length}</span>
-            </button>`).join('')}
-        </div>` : ''}
+    const addBtn = document.createElement('button');
+    addBtn.className = 'review-add-btn';
+    addBtn.innerHTML = '<i class="ti ti-plus"></i> Add';
+    addBtn.onclick = () => addReviewClass(day, activeTab);
+    head.appendChild(addBtn);
+    dayDiv.appendChild(head);
 
-      <div class="review-days" id="reviewDays">
-        ${days.map(day => {
-          const dc = classes.filter(c => c.day === day && (c.week||'A') === activeTab);
-          return `
-            <div class="review-day">
-              <div class="review-day-head">${day}
-                <span class="review-day-count">${dc.length}</span>
-                <button class="review-add-btn" onclick="addReviewClass('${day}','${activeTab}')">
-                  <i class="ti ti-plus"></i> Add
-                </button>
-              </div>
-              ${dc.length === 0
-                ? `<div class="review-empty">No classes — <button class="link-btn" onclick="addReviewClass('${day}','${activeTab}')">add one</button></div>`
-                : dc.map(c => renderReviewClass(c, conflicts)).join('')}
-            </div>`;
-        }).join('')}
-      </div>
-      <div class="wiz-actions">
-        <button class="btn btn-ghost" onclick="renderWizardStep('upload')">← Re-upload</button>
-        <button class="btn btn-primary" onclick="confirmTimetable()">Confirm timetable ✓</button>
-      </div>`;
-  }
+    if (dc.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'review-empty';
+      empty.textContent = 'No classes — click Add to add one';
+      dayDiv.appendChild(empty);
+    } else {
+      dc.forEach(c => {
+        dayDiv.appendChild(buildReviewClassEl(c, conflicts));
+      });
+    }
+
+    daysEl.appendChild(dayDiv);
+  });
 }
 
-function switchReviewTab(week) {
-  ocrWizardState._reviewWeekTab = week;
-  renderWizardStep('review');
-}
-
-function renderReviewClass(c, conflicts) {
+function buildReviewClassEl(c, conflicts) {
   const hasConflict = conflicts.some(cf =>
-    cf.day === c.day && cf.week === (c.week||'A') && (cf.a === c.subject || cf.b === c.subject)
+    cf.day === c.day && cf.week === (c.week || 'A') &&
+    (cf.a === c.subject || cf.b === c.subject)
   );
-  const allSubjects = [...new Set(ocrWizardState.parsedClasses.map(x => x.subject))].sort();
-  const subjectOpts = allSubjects.map(s =>
-    `<option value="${s}" ${s===c.subject?'selected':''}>${s}</option>`
-  ).join('');
 
-  return `
-    <div class="review-class${hasConflict?' conflict':''}" data-id="${c.id}">
-      <div class="review-class-colour" style="background:${c.colour}"></div>
-      <div class="review-class-fields">
-        <div class="review-row">
-          <select class="review-input review-subj"
-            onchange="updateReviewClass(${c.id},'subject',this.value)">
-            ${subjectOpts}
-            <option value="__custom__">+ Custom subject…</option>
-          </select>
-          <input class="review-input review-time" value="${c.time}"
-            placeholder="08:25 - 09:25"
-            onchange="updateReviewClass(${c.id},'time',this.value)">
-        </div>
-        <div class="review-row">
-          <input class="review-input" value="${c.room}" placeholder="Room (e.g. MO321)"
-            onchange="updateReviewClass(${c.id},'room',this.value)">
-          <input class="review-input" value="${c.teacher}" placeholder="Teacher"
-            onchange="updateReviewClass(${c.id},'teacher',this.value)">
-        </div>
-      </div>
-      <button class="review-delete" onclick="deleteReviewClass(${c.id})"
-        title="Remove"><i class="ti ti-trash"></i></button>
-    </div>`;
+  const wrap = document.createElement('div');
+  wrap.className = 'review-class' + (hasConflict ? ' conflict' : '');
+  wrap.dataset.id = c.id;
+
+  // Colour bar
+  const bar = document.createElement('div');
+  bar.className = 'review-class-colour';
+  bar.style.background = c.colour;
+  wrap.appendChild(bar);
+
+  // Fields
+  const fields = document.createElement('div');
+  fields.className = 'review-class-fields';
+
+  // Row 1: subject + time
+  const row1 = document.createElement('div');
+  row1.className = 'review-row';
+
+  const allSubjects = [...new Set(ocrWizardState.parsedClasses.map(x => x.subject))].sort();
+  const sel = document.createElement('select');
+  sel.className = 'review-input review-subj';
+  allSubjects.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    if (s === c.subject) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  const customOpt = document.createElement('option');
+  customOpt.value = '__custom__';
+  customOpt.textContent = '+ Custom subject…';
+  sel.appendChild(customOpt);
+  sel.onchange = () => updateReviewClass(c.id, 'subject', sel.value);
+  row1.appendChild(sel);
+
+  const timeInp = document.createElement('input');
+  timeInp.className = 'review-input review-time';
+  timeInp.value = c.time;
+  timeInp.placeholder = '08:25 - 09:25';
+  timeInp.onchange = () => updateReviewClass(c.id, 'time', timeInp.value);
+  row1.appendChild(timeInp);
+  fields.appendChild(row1);
+
+  // Row 2: room + teacher
+  const row2 = document.createElement('div');
+  row2.className = 'review-row';
+
+  const roomInp = document.createElement('input');
+  roomInp.className = 'review-input';
+  roomInp.value = c.room || '';
+  roomInp.placeholder = 'Room (e.g. MO321)';
+  roomInp.onchange = () => updateReviewClass(c.id, 'room', roomInp.value);
+  row2.appendChild(roomInp);
+
+  const teachInp = document.createElement('input');
+  teachInp.className = 'review-input';
+  teachInp.value = c.teacher || '';
+  teachInp.placeholder = 'Teacher';
+  teachInp.onchange = () => updateReviewClass(c.id, 'teacher', teachInp.value);
+  row2.appendChild(teachInp);
+  fields.appendChild(row2);
+
+  wrap.appendChild(fields);
+
+  // Delete button
+  const del = document.createElement('button');
+  del.className = 'review-delete';
+  del.title = 'Remove';
+  del.innerHTML = '<i class="ti ti-trash"></i>';
+  del.onclick = () => deleteReviewClass(c.id);
+  wrap.appendChild(del);
+
+  return wrap;
 }
+
+// ── Review actions ────────────────────────────────────────────────────────
 
 function updateReviewClass(id, field, value) {
   const c = ocrWizardState.parsedClasses.find(x => x.id === id);
@@ -609,29 +681,21 @@ function updateReviewClass(id, field, value) {
   if (field === 'subject' && value === '__custom__') {
     const custom = prompt('Enter subject name:');
     if (custom) { c.subject = titleCase(custom); c.colour = getSubjectColour(custom); }
+    else return;
   } else {
     c[field] = value;
     if (field === 'subject') c.colour = getSubjectColour(value);
     if (field === 'time') {
-      const m = c.time.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+      const m = value.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
       if (m) { c.startMins = parseTimeToMins(m[1]); c.endMins = parseTimeToMins(m[2]); }
     }
   }
-  const conflicts = detectConflicts(ocrWizardState.parsedClasses);
-  document.querySelectorAll('.review-class').forEach(el => {
-    const cid = Number(el.dataset.id);
-    const cls = ocrWizardState.parsedClasses.find(x => x.id === cid);
-    if (!cls) return;
-    const bad = conflicts.some(cf =>
-      cf.day === cls.day && cf.week === (cls.week||'A') && (cf.a === cls.subject || cf.b === cls.subject)
-    );
-    el.classList.toggle('conflict', bad);
-  });
+  renderReviewStep();
 }
 
 function deleteReviewClass(id) {
   ocrWizardState.parsedClasses = ocrWizardState.parsedClasses.filter(x => x.id !== id);
-  renderWizardStep('review');
+  renderReviewStep();
 }
 
 let _addClassId = 9000;
@@ -643,51 +707,49 @@ function addReviewClass(day, week) {
     time: '08:25 - 09:25',
     startMins: 505,
     endMins:   565,
-    room: '',
+    room:    '',
     teacher: '',
-    colour: getSubjectColour('New Class'),
-    week: week || 'A',
+    colour:  getSubjectColour('New Class'),
+    week:    week || 'A',
     confidence: 'manual',
   });
-  renderWizardStep('review');
+  renderReviewStep();
 }
+
+// ── Upload handler ────────────────────────────────────────────────────────
 
 async function handleTTUpload(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = async e => {
     ocrWizardState.imageDataUrl = e.target.result;
-    renderWizardStep('scanning');
+    showWizStep('scanning');
     try {
       const rawText = await runOCR(file);
-      ocrWizardState.rawText = rawText;
-      const parsed = parseOCRText(rawText);
-      ocrWizardState.parsedClasses = parsed;
+      ocrWizardState.rawText     = rawText;
+      ocrWizardState.parsedClasses = parseOCRText(rawText);
 
-      if (parsed.length === 0) {
-        document.getElementById('wizardContent').innerHTML = `
-          <div class="wiz-icon">😕</div>
-          <div class="wiz-title">Couldn't read the timetable</div>
-          <div class="wiz-sub">The image wasn't clear enough. Try a clearer photo or higher-resolution screenshot, or set up manually.</div>
-          <div class="wiz-actions">
-            <button class="btn btn-ghost" onclick="renderWizardStep('upload')">Try another image</button>
-            <button class="btn btn-primary" onclick="skipToManual()">Set up manually</button>
-          </div>`;
+      if (ocrWizardState.parsedClasses.length === 0) {
+        showWizStep('failed');
         return;
       }
-      renderWizardStep('review');
+      ocrWizardState._reviewWeekTab = [...new Set(ocrWizardState.parsedClasses.map(c => c.week || 'A'))].sort()[0] || 'A';
+      showWizStep('review');
     } catch (err) {
       console.error('OCR error:', err);
-      renderWizardStep('upload');
+      showWizStep('upload');
     }
   };
   reader.readAsDataURL(file);
 }
 
 function skipToManual() {
-  ocrWizardState.parsedClasses = [];
-  renderWizardStep('review');
+  ocrWizardState.parsedClasses  = [];
+  ocrWizardState._reviewWeekTab = 'A';
+  showWizStep('review');
 }
+
+// ── Confirm ───────────────────────────────────────────────────────────────
 
 function confirmTimetable() {
   const classes = ocrWizardState.parsedClasses.map(c => ({
@@ -695,33 +757,32 @@ function confirmTimetable() {
     subject: c.subject,
     day:     c.day,
     time:    c.time,
-    room:    c.room || '',
+    room:    c.room    || '',
     teacher: c.teacher || '',
     colour:  c.colour,
-    week:    c.week || 'A',
+    week:    c.week    || 'A',
   }));
 
-  const targetWeek = ocrWizardState._uploadingWeek;
+  const targetWeek  = ocrWizardState._uploadingWeek;
+  const weeksFound  = [...new Set(classes.map(c => c.week))];
 
-  // If the OCR found both weeks automatically, save both at once
-  const weeksFound = [...new Set(classes.map(c => c.week))];
   if (weeksFound.includes('A') && weeksFound.includes('B') && !targetWeek) {
-    state.classesA     = classes.filter(c => c.week === 'A');
-    state.classesB     = classes.filter(c => c.week === 'B');
-    state.classes      = state.classesA;
+    state.classesA      = classes.filter(c => c.week === 'A');
+    state.classesB      = classes.filter(c => c.week === 'B');
+    state.classes       = state.classesA;
     state.abWeekEnabled = true;
     if (!state.termStartWeek) state.termStartWeek = 'A';
     if (!state.currentWeek)   state.currentWeek   = 'A';
   } else if (targetWeek === 'B') {
-    state.classesB = classes.filter(c => c.week === 'B' || c.week === targetWeek);
+    state.classesB = classes;
   } else {
-    state.classesA = classes.filter(c => c.week === 'A' || !c.week);
-    state.classes  = state.classesA;
+    state.classesA = classes;
+    state.classes  = classes;
   }
 
-  state.hasCompletedSetup     = true;
-  ocrWizardState._uploadingWeek  = null;
-  ocrWizardState._reviewWeekTab  = null;
+  state.hasCompletedSetup       = true;
+  ocrWizardState._uploadingWeek = null;
+  ocrWizardState._reviewWeekTab = null;
 
   saveState();
   hideSetupWizard();
