@@ -1197,6 +1197,9 @@ body {
   transition: border-color 0.2s, background 0.2s;
   color: var(--muted);
   font-size: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
 }
 
 .upload-zone:hover,
