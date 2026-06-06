@@ -161,6 +161,16 @@ async function checkUser() {
   }
 }
 
+// Dev helper — call resetSetup() in console to re-trigger the wizard
+function resetSetup() {
+  state.hasCompletedSetup = false;
+  state.classesA = [];
+  state.classesB = [];
+  state.classes  = [];
+  saveState();
+  showSetupWizard();
+}
+
 function setupUserUI() {
   const name     = currentUser.user_metadata?.full_name || currentUser.email || 'Student';
   const initials = name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
