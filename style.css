@@ -1775,3 +1775,56 @@ body {
 
 /* override tt-grid to not be a grid itself anymore (we nest) */
 #tt-grid { display: block; }
+
+/* ── Review week tabs ─────────────────────────────────────────────── */
+.review-week-tabs {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.review-week-tab {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.review-week-tab.active {
+  background: var(--purple);
+  color: #fff;
+  border-color: var(--purple);
+}
+
+.review-tab-count {
+  background: rgba(255,255,255,0.25);
+  border-radius: 99px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
+.review-week-tab:not(.active) .review-tab-count {
+  background: var(--border);
+  color: var(--muted);
+}
+
+.wiz-tip {
+  width: 100%;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+  border-radius: 10px;
+  padding: 11px 15px;
+  font-size: 13px;
+  line-height: 1.5;
+}
